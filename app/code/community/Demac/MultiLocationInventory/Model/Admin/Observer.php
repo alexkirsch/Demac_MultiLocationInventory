@@ -63,7 +63,7 @@ class Demac_MultiLocationInventory_Model_Admin_Observer
                     $this->_updateInventoryData($_stock);
                 }
             }
-            Mage::getModel('demac_multilocationinventory/indexer')->reindex($productId);
+            Mage::getModel('demac_multilocationinventory/indexer')->reindex([$productId]);
         }
     }
 

@@ -2,7 +2,7 @@
 <config>
     <modules>
         <Demac_MultiLocationInventory>
-            <version>1.2.4</version>
+            <version>3.0.0</version>
         </Demac_MultiLocationInventory>
     </modules>
     <global>
@@ -47,22 +47,19 @@
                 <class>Demac_MultiLocationInventory_Model_Resource</class>
                 <entities>
                     <location>
-                        <table>demac_multilocationinventory_location</table>
+                        <table>demac_mli_location</table>
                     </location>
-                    <stores>
-                        <table>demac_multilocationinventory_stores</table>
-                    </stores>
+                    <website>
+                        <table>demac_mli_website</table>
+                    </website>
                     <stock>
-                        <table>demac_multilocationinventory_stock</table>
+                        <table>demac_mli_stock</table>
                     </stock>
-                    <quote>
-                        <table>demac_multilocationinventory_quote_location</table>
-                    </quote>
-                    <stock_status_index>
-                        <table>demac_multilocationinventory_stock_status_index</table>
-                    </stock_status_index>
+                    <stock_indexer>
+                        <table>demac_mli_stock_indexer</table>
+                    </stock_indexer>
                     <order_stock_source>
-                        <table>demac_multilocationinventory_order_stock_source</table>
+                        <table>demac_mli_order_stock_source</table>
                     </order_stock_source>
                 </entities>
             </demac_multilocationinventory_resource>
@@ -77,35 +74,16 @@
                 <rewrite>
                     <stock>Demac_MultiLocationInventory_Model_CatalogInventory_Resource_Stock</stock>
                     <stock_item>Demac_MultiLocationInventory_Model_CatalogInventory_Resource_Stock_Item</stock_item>
-                    <stock_status>Demac_MultiLocationInventory_Model_CatalogInventory_Resource_Stock_Status</stock_status>
                 </rewrite>
             </cataloginventory_resource>
-            <catalogsearch_resource>
-                <rewrite>
-                    <fulltext>Demac_MultiLocationInventory_Model_Resource_CatalogSearch_Fulltext</fulltext>
-                </rewrite>
-            </catalogsearch_resource>
         </models>
         <resources>
-            <demac_write>
-                <connection>
-                    <use>core_write</use>
-                </connection>
-            </demac_write>
-            <demac_read>
-                <connection>
-                    <use>core_read</use>
-                </connection>
-            </demac_read>
-            <demac_multilocationinventory_setup>
+            <Demac_MultiLocationInventory>
                 <setup>
                     <module>Demac_MultiLocationInventory</module>
                     <class>Mage_Core_Model_Resource_Setup</class>
                 </setup>
-                <connection>
-                    <use>core_setup</use>
-                </connection>
-            </demac_multilocationinventory_setup>
+            </Demac_MultiLocationInventory>
         </resources>
     </global>
     <frontend>
@@ -125,16 +103,6 @@
                 </demac_multilocationinventory>
             </updates>
         </layout>
-        <events>
-            <catalog_product_collection_apply_limitations_before>
-                <observers>
-                    <demac_multilocationinventory_product_collection_apply_limitations_before>
-                        <class>Demac_MultiLocationInventory_Model_Observer</class>
-                        <method>catalogProductCollectionApplyLimitationsBefore</method>
-                    </demac_multilocationinventory_product_collection_apply_limitations_before>
-                </observers>
-            </catalog_product_collection_apply_limitations_before>
-        </events>
     </frontend>
     <admin>
         <routers>

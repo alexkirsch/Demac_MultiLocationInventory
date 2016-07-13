@@ -27,8 +27,8 @@ class Demac_MultiLocationInventory_Model_Location_Api extends Mage_Catalog_Model
                     $locationData[$field] = $data[$field];
                 }
             }
-            if(isset($data['store_ids'])) {
-                $locationData['store_id'] = (array) $data['store_ids'];
+            if(isset($data['websites'])) {
+                $locationData['websites'] = (array) $data['websites'];
             }
             $locationData = $this->getAddressInformation($locationData, $locationItem);
             $locationItem->addData($locationData)
@@ -72,8 +72,6 @@ class Demac_MultiLocationInventory_Model_Location_Api extends Mage_Catalog_Model
         if(!$locationItem->getId()) {
             $this->_fault('not_exists');
         }
-        $locationItem->setData('store_ids', $locationItem->getStoreId());
-        // We can use only simple PHP data types in webservices.
         return $locationItem->toArray();
     }
 
@@ -99,7 +97,6 @@ class Demac_MultiLocationInventory_Model_Location_Api extends Mage_Catalog_Model
         }
         $result = array();
         foreach ($collection as $locationItem) {
-            $locationItem->setData('store_ids', $locationItem->getStoreId());
             $result[] = $locationItem->toArray();
         }
         return $result;
@@ -130,8 +127,8 @@ class Demac_MultiLocationInventory_Model_Location_Api extends Mage_Catalog_Model
                     $locationData[$field] = $data[$field];
                 }
             }
-            if(isset($data['store_ids'])) {
-                $locationData['store_id'] = (array) $data['store_ids'];
+            if(isset($data['websites'])) {
+                $locationData['websites'] = $data['websites'];
             }
             $locationData = $this->getAddressInformation($locationData, $locationItem);
             $locationItem->addData($locationData)

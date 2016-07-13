@@ -36,12 +36,12 @@ class Demac_MultiLocationInventory_Adminhtml_MultiLocationInventoryController ex
     public function editAction()
     {
         $this->_initAction();
-        $locationId    = $this->getRequest()->getParam('id');
+        $locationId = $this->getRequest()->getParam('id');
         $locationModel = Mage::getModel('demac_multilocationinventory/location');
 
-        if($locationId) {
+        if ($locationId) {
             $locationModel->load($locationId);
-            if(!$locationModel->getId()) {
+            if (!$locationModel->getId()) {
                 Mage::getSingleton('adminhtml/session')->addError($this->__('This location no longer exists.'));
                 $this->_redirect('*/*/');
 
@@ -50,10 +50,7 @@ class Demac_MultiLocationInventory_Adminhtml_MultiLocationInventoryController ex
         }
 
         $this->_title($locationModel->getId() ? $locationModel->getName() : $this->__('New Location'));
-        $data = Mage::getSingleton('adminhtml/session')->getStoreData(true);
-        if(!empty($data)) {
-            $locationModel->setData($data);
-        }
+
         Mage::register('multilocationinventory_data', $locationModel);
 
         $this->loadLayout();
@@ -66,9 +63,7 @@ class Demac_MultiLocationInventory_Adminhtml_MultiLocationInventoryController ex
         $this->_addLeft($this->getLayout()->createBlock('demac_multilocationinventory/adminhtml_location_edit_tabs'));
 
         $this->renderLayout();
-
     }
-
 
     /**
      * Save...
@@ -79,9 +74,9 @@ class Demac_MultiLocationInventory_Adminhtml_MultiLocationInventoryController ex
      */
     public function saveAction()
     {
-        if($postData = $this->getRequest()->getPost()) {
+        if ($postData = $this->getRequest()->getPost()) {
             $locationModel = Mage::getSingleton('demac_multilocationinventory/location');
-            if($id = $this->getRequest()->getParam('id')) {
+            if ($id = $this->getRequest()->getParam('id')) {
                 $locationModel->load($id);
             }
 
@@ -89,7 +84,7 @@ class Demac_MultiLocationInventory_Adminhtml_MultiLocationInventoryController ex
             $locationModel->setData($postData);
 
             try {
-                if(is_null($locationModel->getCreatedTime()) || $locationModel->getCreatedTime() == '') {
+                if (is_null($locationModel->getCreatedTime()) || $locationModel->getCreatedTime() == '') {
                     $locationModel->setCreatedTime(time());
                 }
                 $locationModel->setUpdateTime(time());
@@ -97,8 +92,8 @@ class Demac_MultiLocationInventory_Adminhtml_MultiLocationInventoryController ex
                 $locationModel->save();
 
                 Mage::getSingleton('adminhtml/session')->addSuccess($this->__('The Location has been saved.'));
-                if($this->getRequest()->getParam('back')) {
-                    $this->_redirect('*/*/edit', array('id' => $locationModel->getId()));
+                if ($this->getRequest()->getParam('back')) {
+                    $this->_redirect('*/*/edit', ['id' => $locationModel->getId()]);
 
                     return;
                 }
@@ -111,9 +106,6 @@ class Demac_MultiLocationInventory_Adminhtml_MultiLocationInventoryController ex
 
                 return;
             }
-
-            Mage::getSingleton('adminhtml/session')->setStoreData($postData);
-            $this->_redirectReferer();
         }
     }
 
@@ -124,7 +116,7 @@ class Demac_MultiLocationInventory_Adminhtml_MultiLocationInventoryController ex
      */
     public function deleteAction()
     {
-        if($this->getRequest()->getParam('id') > 0) {
+        if ($this->getRequest()->getParam('id') > 0) {
             try {
                 $locationModel = Mage::getModel('demac_multilocationinventory/location');
 
@@ -135,7 +127,7 @@ class Demac_MultiLocationInventory_Adminhtml_MultiLocationInventoryController ex
                 $this->_redirect('*/*/');
             } catch (Exception $e) {
                 Mage::getSingleton('adminhtml/session')->addError($e->getMessage());
-                $this->_redirect('*/*/edit', array('id' => $this->getRequest()->getParam('id')));
+                $this->_redirect('*/*/edit', ['id' => $this->getRequest()->getParam('id')]);
             }
         }
         $this->_redirect('*/*/');
@@ -149,7 +141,7 @@ class Demac_MultiLocationInventory_Adminhtml_MultiLocationInventoryController ex
     public function massDeleteAction()
     {
         $locationIds = $this->getRequest()->getParam('demac_multilocationinventory');
-        if(!is_array($locationIds)) {
+        if (!is_array($locationIds)) {
             Mage::getSingleton('adminhtml/session')->addError($this->__('Please select a location(s)'));
         } else {
             try {
@@ -174,7 +166,7 @@ class Demac_MultiLocationInventory_Adminhtml_MultiLocationInventoryController ex
     public function massStatusAction()
     {
         $locationIds = $this->getRequest()->getParam('demac_multilocationinventory');
-        if(!is_array($locationIds)) {
+        if (!is_array($locationIds)) {
             Mage::getSingleton('adminhtml/session')->addError($this->__('Please select a location(s)'));
         } else {
             try {
@@ -235,18 +227,18 @@ class Demac_MultiLocationInventory_Adminhtml_MultiLocationInventoryController ex
      */
     public function getCountry($needle)
     {
-        if(is_null($this->_countries)) {
-            $countriesList    = Mage::getResourceModel('directory/country_collection')
+        if (is_null($this->_countries)) {
+            $countriesList = Mage::getResourceModel('directory/country_collection')
                 ->loadData()
                 ->toOptionArray(false);
-            $newCountriesList = array();
+            $newCountriesList = [];
             foreach ($countriesList as $key => $val) {
                 $newCountriesList[strtolower($val['label'])] = $val['value'];;
             }
             $this->_countries = $newCountriesList;
         }
         $countryCode = str_replace('USA', 'US', strtolower($needle));
-        if(isset($this->_countries[$countryCode])) {
+        if (isset($this->_countries[$countryCode])) {
             return $this->_countries[$countryCode];
         }
 
@@ -259,7 +251,7 @@ class Demac_MultiLocationInventory_Adminhtml_MultiLocationInventoryController ex
     public function regionAction()
     {
         $countryCode = $this->getRequest()->getParam('country');
-        $options     = Mage::helper('demac_multilocationinventory')->getRegions($countryCode);
+        $options = Mage::helper('demac_multilocationinventory')->getRegions($countryCode);
         $optionsHtml = '';
 
         foreach ($options as $option) {

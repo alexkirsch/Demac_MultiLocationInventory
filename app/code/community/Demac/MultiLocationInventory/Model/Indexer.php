@@ -3,10 +3,8 @@
 /**
  * Class Demac_MultiLocationInventory_Model_Indexer
  */
-class Demac_MultiLocationInventory_Model_Indexer
-    extends Mage_Index_Model_Indexer_Abstract
+class Demac_MultiLocationInventory_Model_Indexer extends Mage_Index_Model_Indexer_Abstract
 {
-
     /**
      * Register events that require a re-index. We never do since we update the indexer via observers.
      *
@@ -14,7 +12,6 @@ class Demac_MultiLocationInventory_Model_Indexer
      */
     protected function _registerEvent(Mage_Index_Model_Event $event)
     {
-
     }
 
     /**
@@ -24,7 +21,6 @@ class Demac_MultiLocationInventory_Model_Indexer
      */
     protected function _processEvent(Mage_Index_Model_Event $event)
     {
-
     }
 
     /**
@@ -44,26 +40,33 @@ class Demac_MultiLocationInventory_Model_Indexer
      */
     public function getDescription()
     {
-        return 'Index stock status on a per store view level rather than per inventory location.';
+        return 'Index stock status on a per website/locaton level.';
     }
-
 
     /**
      * Reindex all
      */
     public function reindexAll()
     {
-        Mage::getModel('demac_multilocationinventory/stock_status_index')->reindex();
+        Mage::getResourceModel('demac_multilocationinventory/stock_indexer')->reindex();
     }
 
     /**
      * Run reindexers
      *
-     * @param int|array $productIds Product id (int) or array of product ids to reindex
+     * @param int[] $productIds Product id (int) or array of product ids to reindex
      */
-    public function reindex($productIds)
+    public function reindex(array $productIds)
     {
-        Mage::getModel('demac_multilocationinventory/stock_status_index')->reindex($productIds);
+        // Sanitize this input
+        $productIds = array_unique(array_filter(array_map('intval', $productIds)));
+
+        // Bail early if we have no IDs (use reindexAll if you want a full reindex)
+        if (count($productIds) === 0) {
+            return;
+        }
+
+        Mage::getResourceModel('demac_multilocationinventory/stock_indexer')->reindex($productIds);
     }
 
 }

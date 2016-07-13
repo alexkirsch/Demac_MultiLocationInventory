@@ -1,49 +1,10 @@
 <?php
+
 /**
  * Class Demac_MultiLocationInventory_Model_CatalogInventory_Resource_Stock_Item
  */
 class Demac_MultiLocationInventory_Model_CatalogInventory_Resource_Stock_Item extends Mage_CatalogInventory_Model_Resource_Stock_Item
 {
-    /**
-     * Loading stock item data by product
-     *
-     * @param Mage_CatalogInventory_Model_Stock_Item $item
-     * @param int                                    $productId
-     *
-     * @return Mage_CatalogInventory_Model_Resource_Stock_Item
-     */
-    public function loadByProductId(Mage_CatalogInventory_Model_Stock_Item $item, $productId)
-    {
-        $storeId = Mage::app()->getStore()->getId();
-
-        $select = $this->_getLoadSelect('product_id', $productId, $item)
-            ->where('stock_id = :stock_id');
-        $data   = $this->_getReadAdapter()->fetchRow($select, array(':stock_id' => $item->getStockId()));
-
-
-        $stockStatusCollection = Mage::getModel('demac_multilocationinventory/stock_status_index')
-            ->getCollection()
-            ->addFieldToFilter('product_id', $productId)
-            ->addFieldToFilter('store_id', $storeId);
-
-        $stockStatus = $stockStatusCollection->getFirstItem();
-        if($data && $stockStatus->getId()) {
-            $data['qty']         = $stockStatus->getQty();
-            $data['backorders']  = $stockStatus->getBackorders();
-            $data['is_in_stock'] = $stockStatus->getIsInStock();
-            $data['manage_stock'] = $stockStatus->getManageStock();
-            //@TODO support use_config_backorders
-            //$data['use_config_backorders'] = 1;//override...
-            //@TODO support use_config_manage_stock
-            //$data['use_config_manage_stock'] = 1;
-            $item->setData($data);
-        }
-        $this->_afterLoad($item);
-
-        return $this;
-    }
-
-
     /**
      * Add join for catalog in stock field to product collection
      *
@@ -53,17 +14,52 @@ class Demac_MultiLocationInventory_Model_CatalogInventory_Resource_Stock_Item ex
      */
     public function addCatalogInventoryToProductCollection($productCollection)
     {
-        $productCollection->getSelect()->joinLeft(
-            array('cisi' => Mage::getSingleton('core/resource')->getTableName('demac_multilocationinventory/stock_status_index')),
-            'e.entity_id = cisi.product_id' .
-            ' AND cisi.store_id = ' . Mage::app()->getStore()->getId(),
-            array(
-                'is_saleable'        => 'is_in_stock',
-                'inventory_in_stock' => 'is_in_stock'
-            )
+        $adapter = $this->_getReadAdapter();
+        $isManageStock = (int)Mage::getStoreConfig(Mage_CatalogInventory_Model_Stock_Item::XML_PATH_MANAGE_STOCK);
+        $stockExpr = $adapter->getCheckSql('cisi.use_config_manage_stock = 1', $isManageStock, 'cisi.manage_stock');
+        $stockExpr = $adapter->getCheckSql("({$stockExpr} = 1)", 'ciss.is_in_stock', '1');
+
+        $productCollection->joinTable(
+            ['cisi' => 'cataloginventory/stock_item'],
+            'product_id=entity_id',
+            [],
+            null,
+            'left'
+        );
+        $productCollection->joinTable(
+            ['ciss' => 'cataloginventory/stock_status'],
+            'product_id=entity_id AND website_id=' . Mage::app()->getWebsite()->getId(),
+            [
+                'is_saleable'        => new Zend_Db_Expr($stockExpr),
+                'inventory_in_stock' => 'is_in_stock',
+            ],
+            null,
+            'left'
         );
 
         return $this;
     }
 
+    /**
+     * Perform actions after object load
+     *
+     * @param Varien_Object $object
+     *
+     * @return Mage_Core_Model_Resource_Db_Abstract
+     */
+    protected function _afterLoad(Mage_Core_Model_Abstract $object)
+    {
+        $select = $this->_getReadAdapter()->select()
+            ->from($this->getTable('cataloginventory/stock_status'))
+            ->where('product_id = ?', intval($object->getProductId()))
+            ->where('website_id = ?', intval(Mage::app()->getWebsite()->getId()));
+
+        $data = $this->_getReadAdapter()->fetchRow($select);
+        if ($data) {
+            $object->setDataUsingMethod('qty', $data['qty']);
+            $object->setDataUsingMethod('is_in_stock', $data['is_in_stock']);
+        }
+
+        return parent::_afterLoad($object);
+    }
 }

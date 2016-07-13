@@ -11,8 +11,7 @@ class Demac_MultiLocationInventory_Model_Resource_Location_Collection extends Ma
     protected function _construct()
     {
         $this->_init('demac_multilocationinventory/location');
-        $this->_map['fields']['id']                  = 'main_table.id';
-        $this->_map['fields']['location_id']         = 'demac_multilocationinventory_stores.location_id';
+        $this->_map['fields']['location_id'] = 'demac_multilocationinventory_website.location_id';
     }
 
     /**
@@ -23,38 +22,12 @@ class Demac_MultiLocationInventory_Model_Resource_Location_Collection extends Ma
      */
     protected function _afterLoad()
     {
-        $items      = $this->getColumnValues('id');
-        $connection = $this->getConnection();
-        if(count($items)) {
-            $select = $connection->select()
-                ->from(array('demac_multilocationinventory_stores' => $this->getTable('demac_multilocationinventory/stores')))
-                ->where('demac_multilocationinventory_stores.location_id IN (?)', $items);
-
-            if($result = $connection->fetchPairs($select)) {
-                foreach ($this as $item) {
-                    $stores = $this->lookupStoreIds($item->getId());
-                    $item->setData('store_id', $stores);
-                }
-            }
+        foreach ($this->_items as $item) {
+            /** @var Demac_MultiLocationInventory_Model_Location $item */
+            $item->afterLoad();
         }
+
         return parent::_afterLoad();
-    }
-
-    /**
-     * Look up store ids that a location shares its inventory with.
-     *
-     * @param $locationId
-     *
-     * @return array
-     */
-    public function lookupStoreIds($locationId)
-    {
-        $connection = $this->getConnection();
-        $select     = $connection->select()
-            ->from($this->getTable('demac_multilocationinventory/stores'), 'store_id')
-            ->where('location_id = ?', (int) $locationId);
-
-        return $connection->fetchCol($select);
     }
 
     /**
@@ -64,12 +37,13 @@ class Demac_MultiLocationInventory_Model_Resource_Location_Collection extends Ma
      */
     protected function _renderFiltersBefore()
     {
-        if($this->getFilter('store_id')) {
+        if ($this->getFilter('website_id')) {
             $this->getSelect()->join(
-                array('demac_multilocationinventory_stores' => $this->getTable('demac_multilocationinventory/stores')),
-                'main_table.id = demac_multilocationinventory_stores.location_id',
-                array()
-            )->group('main_table.id');
+                ['website' => $this->getTable('demac_multilocationinventory/website')],
+                'main_table.id = website.location_id',
+                []
+            );
+            $this->getSelect()->group('main_table.id');
 
             /*
              * Allow analytic functions usage because of one field grouping
@@ -81,28 +55,59 @@ class Demac_MultiLocationInventory_Model_Resource_Location_Collection extends Ma
     }
 
     /**
-     * Add filter by store
+     * Join stock data to a location collection based on product id
      *
-     * @param int|Mage_Core_Model_Store $store
-     * @param bool                      $withAdmin
+     * @param int  $productId
      *
-     * @return Demac_MultiLocationInventory_Model_Resource_Location_Collection
-     *
+     * @return $this
      */
-    public function addStoreFilter($store, $withAdmin = true)
+    public function joinStock($productId)
     {
-        if(!$this->getFlag('store_filter_added')) {
-            if($store instanceof Mage_Core_Model_Store) {
-                $store = array($store->getId());
-            }
-            if(!is_array($store)) {
-                $store = array($store);
-            }
-            if($withAdmin) {
-                $store[] = Mage_Core_Model_App::ADMIN_STORE_ID;
-            }
-            $this->addFilter('store_id', array('in' => $store), 'public');
+        if (isset($this->_joinedTables['stock'])) {
+            throw new InvalidArgumentException('The stock table was already joined');
         }
+
+        $productId = intval($productId);
+        $this->getSelect()->joinLeft(
+            ['stock' => $this->getTable('demac_multilocationinventory/stock')],
+            'main_table.id=stock.location_id AND stock.product_id=' . $productId,
+            [
+                'qty'          => new Zend_Db_Expr('IFNULL(stock.qty, 0)'),
+                'backorders'   => new Zend_Db_Expr('IFNULL(stock.backorders, 0)'),
+                'is_in_stock'  => new Zend_Db_Expr('IFNULL(stock.is_in_stock, 0)'),
+                'manage_stock' => new Zend_Db_Expr('IFNULL(stock.manage_stock, 0)'),
+            ]
+        );
+        $this->getSelect()->group('main_table.id');
+        $this->_joinedTables['stock'] = true;
+
+        return $this;
+    }
+
+    public function joinWebsites()
+    {
+        if (!isset($this->_joinedTables['website'])) {
+            $this->getSelect()->joinLeft(
+                ['website' => $this->getTable('demac_multilocationinventory/website')],
+                'main_table.id = website.location_id',
+                ['websites' => new Zend_Db_Expr('GROUP_CONCAT(website.website_id SEPARATOR ",")')]
+            );
+            $this->getSelect()->group('main_table.id');
+            $this->_joinedTables['website'] = true;
+        }
+
+        return $this;
+    }
+
+    public function filterWebsites(array $websiteIds)
+    {
+        $websiteIds = array_filter(array_map('intval', $websiteIds));
+        if (count($websiteIds) === 0) {
+            throw new InvalidArgumentException('The $websiteIds argument requires at least one valid value');
+        }
+
+        $this->joinWebsites();
+        $this->addFieldToFilter('website.website_id', ['in' => $websiteIds]);
 
         return $this;
     }
@@ -110,55 +115,36 @@ class Demac_MultiLocationInventory_Model_Resource_Location_Collection extends Ma
     /**
      * Join stock data to a location collection based on product id and store view id.
      *
-     * @param      $productId
-     * @param bool $storeViewId
+     * @param int $productId
+     * @param int $websiteId
      *
-     * @return Demac_MultiLocationInventory_Model_Resource_Location_Collection
+     * @return $this
      */
-    public function joinStockDataOnProductAndStoreView($productId = false, $storeViewId = false)
+    public function joinStockAndWebsiteData($productId, $websiteId = null)
     {
-        $this
-            ->getSelect()
-            ->join(
-                array(
-                    'stock' => Mage::getSingleton('core/resource')->getTableName('demac_multilocationinventory/stock')
-                ),
-                'main_table.id = stock.location_id',
-                array('stock.qty', 'stock.backorders', 'stock.is_in_stock', 'stock.manage_stock')
-            );
-
-        $this
-            ->addFieldToFilter('main_table.status', 1);
-
-
-        if($productId) {
-            $this
-                ->addFieldToFilter(
-                    'stock.product_id',
-                    array(
-                        array('eq' => $productId),
-                        array('null' => true)
-                    )
-                );
+        $productId = intval($productId);
+        $websiteId = intval($websiteId);
+        if (!$productId) {
+            throw new InvalidArgumentException('The productId argument is required');
         }
 
-        $this
-            ->getSelect()
-            ->join(
-                array(
-                    'stores' => Mage::getSingleton('core/resource')->getTableName('demac_multilocationinventory/stores')
-                ),
-                'main_table.id = stores.location_id',
-                array()
-            );
+        $this->addFieldToFilter('main_table.status', 1);
 
-        if($storeViewId) {
+        $this->join(
+            ['stock' => 'demac_multilocationinventory/stock'],
+            'main_table.id = stock.location_id',
+            ['stock.qty', 'stock.backorders', 'stock.is_in_stock', 'stock.manage_stock']
+        );
+        $this->addFieldToFilter('stock.product_id', ['eq' => $productId]);
 
-            $this->addFieldToFilter('stores.store_id', $storeViewId);
+        $this->join(
+            ['website' => 'demac_multilocationinventory/website'],
+            'main_table.id = website.location_id',
+            []
+        );
+        if ($websiteId) {
+            $this->addFieldToFilter('website.website_id', $websiteId);
         }
-
-        $this->getSelect()->group('main_table.id');
-
 
         return $this;
     }

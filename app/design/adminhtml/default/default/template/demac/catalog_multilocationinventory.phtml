@@ -1,3 +1,4 @@
+<?php /** @var Demac_MultiLocationInventory_Block_Adminhtml_Catalog_Product_Edit_Multilocationinventory $this */ ?>
 <div class="entry-edit">
     <div class="entry-edit-head">
         <h4 class="icon-head head-edit-form fieldset-legend">Multi Location Inventory</h4>
@@ -30,6 +31,7 @@
                 <thead>
                 <tr class="headings">
                     <th>Location</th>
+                    <th style="width: 4em; text-align: center;">In Use</th>
                     <th>Quantity</th>
                     <th>Backorders</th>
                     <th>Stock Status</th>
@@ -42,17 +44,20 @@
                         <td>
                             <?php echo $_location['name'] ?>
                         </td>
+                        <td style="width: auto; text-align: center;">
+                            <?php echo($_location['allowed'] ? 'Yes' : '') ?>
+                        </td>
                         <td>
                             <input type="text"
                                    name="multilocationinventory[<?php echo $_location['id'] ?>][quantity]"
                                    class="input-text validate-number"
-                                   <?php echo ($_location['manage_stock'] === "1") ? '' : 'style="visibility:hidden;"' ?>
+                                <?php echo ($_location['manage_stock'] === "1") ? '' : 'style="visibility:hidden;"' ?>
                                    value="<?php echo $_location['qty'] ?>"/>
                         </td>
                         <td>
                             <select name="multilocationinventory[<?php echo $_location['id'] ?>][backorders]"
                                     style="width:86%;<?php echo ($_location['manage_stock'] === "1") ? '' : 'visibility:hidden;' ?>" class="select">
-                                <?php if($_location['backorders'] == ''): ?>
+                                <?php if ($_location['backorders'] == ''): ?>
                                     <option value="-"></option>
                                 <?php endif; ?>
                                 <option
@@ -100,17 +105,17 @@
 </div>
 
 <script type="text/javascript">
-$$('.demac_multilocationinventory_manage_stock').each(function(element) {
-  element.observe('change', function (ev) {
-    var visibility_str = "hidden";
-    if(ev.target.value == "1") {
-      visibility_str = "visible";
-    }
-    ev.target.parentElement.parentElement.select('input, select').each(function(toggleElement) {
-      if(!toggleElement.hasClassName('demac_multilocationinventory_manage_stock')) {
-        toggleElement.setStyle({visibility: visibility_str});
-      }
+    $$('.demac_multilocationinventory_manage_stock').each(function (element) {
+        element.observe('change', function (ev) {
+            var visibility_str = "hidden";
+            if (ev.target.value == "1") {
+                visibility_str = "visible";
+            }
+            ev.target.parentElement.parentElement.select('input, select').each(function (toggleElement) {
+                if (!toggleElement.hasClassName('demac_multilocationinventory_manage_stock')) {
+                    toggleElement.setStyle({visibility: visibility_str});
+                }
+            });
+        });
     });
-  });
-});
 </script>

@@ -13,167 +13,86 @@ class Demac_MultiLocationInventory_Model_Resource_Location extends Mage_Core_Mod
     }
 
     /**
-     * Assign page to store views
-     *
-     * @param Mage_Core_Model_Abstract $object
-     *
-     * @return Demac_MultiLocationInventory_Model_Resource_Location
-     */
-    protected function _afterSave(Mage_Core_Model_Abstract $object)
-    {
-        $this->saveStores($object);
-
-        return parent::_afterSave($object);
-    }
-
-    /**
-     * Save stores
-     *
-     * @param $object
-     */
-    protected function saveStores($object)
-    {
-        $oldStores = $this->lookupStoreIds($object->getId());
-        $newStores = (array) $object->getStores();
-        if(empty($newStores)) {
-            $newStores = (array) $object->getStoreId();
-        }
-        $table  = $this->getTable('demac_multilocationinventory/stores');
-        $insert = array_diff($newStores, $oldStores);
-        $delete = array_diff($oldStores, $newStores);
-
-        if($delete) {
-            $where = array(
-                'location_id = ?' => (int) $object->getId(),
-                'store_id IN (?)' => $delete
-            );
-
-            $this->_getWriteAdapter()->delete($table, $where);
-        }
-
-        if($insert) {
-            $data = array();
-
-            foreach ($insert as $storeId) {
-                $data[] = array(
-                    'location_id' => (int) $object->getId(),
-                    'store_id'    => (int) $storeId
-                );
-            }
-
-            $this->_getWriteAdapter()->insertMultiple($table, $data);
-        }
-    }
-
-    /**
-     * Retrieve select object for load object data
-     *
-     * @param string                   $field
-     * @param mixed                    $value
-     * @param Mage_Core_Model_Abstract $object
-     *
-     * @return Zend_Db_Select
-     */
-    protected function _getLoadSelect($field, $value, $object)
-    {
-        $select = parent::_getLoadSelect($field, $value, $object);
-
-        if($object->getStoreId()) {
-            $storeIds = array(Mage_Core_Model_App::ADMIN_STORE_ID, (int) $object->getStoreId());
-            $select->join(
-                array('demac_multilocationinventory_stores' => $this->getTable('demac_multilocationinventory/stores')),
-                $this->getMainTable() . '.id = demac_multilocationinventory_stores.location_id',
-                array())
-                ->where('demac_multilocationinventory_stores.store_id IN (?)', $storeIds)
-                ->order('demac_multilocationinventory_stores.store_id DESC')
-                ->limit(1);
-        }
-
-        return $select;
-    }
-
-    /**
-     * Get store ids to which specified item is assigned
-     *
-     * @param int $locationId
-     *
-     * @return array
-     */
-    public function lookupStoreIds($locationId)
-    {
-        $adapter = $this->_getReadAdapter();
-        $select  = $adapter->select()
-            ->from($this->getTable('demac_multilocationinventory/stores'), 'store_id')
-            ->where('location_id = ?', (int) $locationId);
-
-        return $adapter->fetchCol($select);
-    }
-
-    /**
-     * After load init
-     *
      * @param Mage_Core_Model_Abstract $object
      *
      * @return Mage_Core_Model_Resource_Db_Abstract
      */
     protected function _afterLoad(Mage_Core_Model_Abstract $object)
     {
-        if($object->getId()) {
-            $stores = $this->lookupStoreIds($object->getId());
-            $object->setData('store_id', $stores);
+        if ($object->hasData('websites')) {
+            $websites = $object->getData('websites');
+            if (is_array($websites)) {
+                $websites = array_unique(array_map('intval', $websites));
+            } elseif (is_scalar($websites)) {
+                $websites = array_unique(array_map('intval', explode(',', $websites)));
+            } else {
+                $websites = [];
+            }
+        } else {
+            $websites = $this->lookupWebsiteIds($object->getId());
         }
+
+        $object->setData('websites', $websites);
 
         return parent::_afterLoad($object);
     }
 
     /**
-     * Add filter by store
+     * @param Mage_Core_Model_Abstract $object
      *
-     * @param int|Mage_Core_Model_Store $store
-     * @param bool                      $withAdmin
-     *
-     * @return Demac_MultiLocationInventory_Model_Resource_Location
+     * @return Mage_Core_Model_Resource_Db_Abstract
      */
-    public function addStoreFilter($store, $withAdmin = true)
+    protected function _afterSave(Mage_Core_Model_Abstract $object)
     {
-        if($store instanceof Mage_Core_Model_Store) {
-            $store = array($store->getId());
+        $oldWebsites = $this->lookupWebsiteIds($object->getId());
+        $newWebsites = $object->getDataUsingMethod('websites');
+        if (is_array($newWebsites)) {
+            $newWebsites = array_unique(array_map('intval', $newWebsites));
+        } elseif (is_scalar($newWebsites)) {
+            $newWebsites = array_unique(array_map('intval', explode(',', $newWebsites)));
+        } else {
+            $newWebsites = [];
         }
 
-        if(!is_array($store)) {
-            $store = array($store);
+        $table = $this->getTable('demac_multilocationinventory/website');
+        $insert = array_diff($newWebsites, $oldWebsites);
+        $delete = array_diff($oldWebsites, $newWebsites);
+
+        if (count($delete)) {
+            $this->_getWriteAdapter()->delete(
+                $table,
+                [
+                    'location_id = ?'   => intval($object->getId()),
+                    'website_id IN (?)' => $delete,
+                ]
+            );
         }
 
-        if($withAdmin) {
-            $store[] = Mage_Core_Model_App::ADMIN_STORE_ID;
+        if (count($insert)) {
+            $data = [];
+            foreach ($insert as $websiteId) {
+                $data[] = ['location_id' => intval($object->getId()), 'website_id' => intval($websiteId)];
+            }
+            $this->_getWriteAdapter()->insertMultiple($table, $data);
         }
-        $this->addFilter('store_id', array('in' => $store), 'public');
 
-        return $this;
+        return parent::_afterSave($object);
     }
 
-
     /**
-     * Set store
+     * Get website ids to which specified item is assigned
      *
-     * @param $store
+     * @param int $locationId
      *
-     * @return Demac_MultiLocationInventory_Model_Resource_Location
+     * @return int[]
      */
-    public function setStore($store)
+    public function lookupWebsiteIds($locationId)
     {
-        $this->_store = $store;
+        $adapter = $this->_getReadAdapter();
+        $select = $adapter->select()
+            ->from($this->getTable('demac_multilocationinventory/website'), 'website_id')
+            ->where('location_id = ?', intval($locationId));
 
-        return $this;
-    }
-
-    /**
-     * Retrieve store model
-     *
-     * @return Mage_Core_Model_Store
-     */
-    public function getStore()
-    {
-        return Mage::app()->getStore($this->_store);
+        return array_map('intval', $adapter->fetchCol($select));
     }
 }

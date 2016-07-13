@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Class Demac_MultiLocationInventory_Model_CatalogInventory_Resource_Stock
  */
@@ -15,20 +16,22 @@ class Demac_MultiLocationInventory_Model_CatalogInventory_Resource_Stock extends
      */
     public function getProductsStock($stock, $productIds, $lockRows = false)
     {
-        if(empty($productIds)) {
-            return array();
+        if (empty($productIds)) {
+            return [];
         }
-        $itemTable    = $this->getTable('demac_multilocationinventory/stock_status_index');
+
         $productTable = $this->getTable('catalog/product');
-        $select       = $this->_getWriteAdapter()->select()
-            ->from(array('si' => $itemTable))
-            ->join(array('p' => $productTable), 'p.entity_id=si.product_id', array('type_id'))
-            ->where('si.store_id=?', Mage::app()->getStore()->getId())
+        $itemTable = $this->getTable('cataloginventory/stock_item');
+        $statusTable = $this->getTable('cataloginventory/stock_status');
+        $select = $this->_getWriteAdapter()->select()
+            ->from(['si' => $itemTable])
+            ->join(['p' => $productTable], 'p.entity_id=si.product_id', ['type_id'])
+            ->join(['ss' => $statusTable], 'p.entity_id=ss.product_id AND ss.website_id=' . Mage::app()->getWebsite()->getId(), ['qty', 'is_in_stock'])
+            ->where('stock_id=?', $stock->getId())
             ->where('product_id IN(?)', $productIds)
             ->forUpdate($lockRows);
 
         return $this->_getWriteAdapter()->fetchAll($select);
     }
-
 
 }

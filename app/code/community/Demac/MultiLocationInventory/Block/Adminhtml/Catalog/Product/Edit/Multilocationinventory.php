@@ -3,25 +3,28 @@
 /**
  * Class Demac_MultiLocationInventory_Block_Adminhtml_Catalog_Product_Edit_Multilocationinventory
  */
-class Demac_MultiLocationInventory_Block_Adminhtml_Catalog_Product_Edit_Multilocationinventory
-    extends Mage_Adminhtml_Block_Widget
-    implements Mage_Adminhtml_Block_Widget_Tab_Interface
+class Demac_MultiLocationInventory_Block_Adminhtml_Catalog_Product_Edit_Multilocationinventory extends Mage_Adminhtml_Block_Widget implements Mage_Adminhtml_Block_Widget_Tab_Interface
 {
-
     /**
-     * @var array Inventory for each location.
+     * Inventory for each location
+     *
+     * @var array[]
      */
-    private $locations = array();
+    private $locations = [];
 
     /**
-     * @var float Total quantity within the current scope.
-     */
-    private $scopeInventory = 0.0;
-
-    /**
-     * @var float Total quantity available for this product globally.
+     * Total quantity available for this product globally
+     *
+     * @var float
      */
     private $globalInventory = 0.0;
+
+    /**
+     * Total quantity within the current scope
+     *
+     * @var float
+     */
+    private $scopeInventory = 0.0;
 
     /**
      * Init the tab and set it's template
@@ -31,7 +34,6 @@ class Demac_MultiLocationInventory_Block_Adminhtml_Catalog_Product_Edit_Multiloc
         parent::_construct();
         $this->setTemplate('demac/catalog_multilocationinventory.phtml');
         $this->loadLocationsInventoriesData();
-        $this->loadGlobalInventory($this->getProductId());
     }
 
     /**
@@ -94,7 +96,6 @@ class Demac_MultiLocationInventory_Block_Adminhtml_Catalog_Product_Edit_Multiloc
         return false;
     }
 
-
     /**
      * Get stock details for each location.
      *
@@ -130,28 +131,34 @@ class Demac_MultiLocationInventory_Block_Adminhtml_Catalog_Product_Edit_Multiloc
      */
     private function loadLocationsInventoriesData()
     {
-        $productId   = $this->getProductId();
+        /** @var Mage_Catalog_Model_Product $product */
+        $product = Mage::getModel('catalog/product')->load($this->getProductId());
         $storeViewId = $this->getStoreViewId();
+        $websiteId = ($storeViewId ? Mage::app()->getStore($storeViewId)->getWebsiteId() : null);
 
-        $locationStockCollection = Mage::getModel('demac_multilocationinventory/location')
-            ->getCollection()
-            ->joinStockDataOnProductAndStoreView($productId, $storeViewId);
+        /** @var Demac_MultiLocationInventory_Model_Resource_Location_Collection $collection */
+        $collection = Mage::getModel('demac_multilocationinventory/location')->getCollection();
+        $collection->joinStock($product->getId());
+        $collection->joinWebsites();
 
-        $locations = array();
-        foreach ($locationStockCollection as $locationStock) {
-            $locationStock->setQty(floatval($locationStock->getQty()));
-            $this->scopeInventory += $locationStock->getQty();
-            array_push($locations, $locationStock->toArray());
+        $locations = [];
+        foreach ($collection as $locationWithStock) {
+            /** @var Demac_MultiLocationInventory_Model_Location $locationWithStock */
+
+            // Ensure that qty is a float
+            $locationWithStock->setDataUsingMethod('qty', floatval($locationWithStock->getDataUsingMethod('qty')));
+
+            // Add a flag indicating if this location is allowed for this product
+            $allowed = (bool)count(array_intersect($product->getWebsiteIds(), $locationWithStock->getDataUsingMethod('websites')));
+            $allowed = $allowed && $locationWithStock->getStatus();
+            $locationWithStock->setData('allowed', $allowed);
+            if ($allowed || in_array($websiteId, $locationWithStock->getDataUsingMethod('websites'))) {
+                $this->scopeInventory += $locationWithStock->getDataUsingMethod('qty');
+            }
+            $this->globalInventory += $locationWithStock->getDataUsingMethod('qty');
+            $locations[] = $locationWithStock->toArray();
         }
 
         $this->locations = $locations;
-    }
-
-    /**
-     * Load global inventory.
-     */
-    private function loadGlobalInventory($productId)
-    {
-        $this->globalInventory = Mage::getModel('demac_multilocationinventory/stock')->getGlobalInventory($productId);
     }
 }

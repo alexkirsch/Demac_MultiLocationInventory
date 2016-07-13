@@ -15,41 +15,41 @@ class Demac_MultiLocationInventory_Model_CatalogInventory_Stock extends Mage_Cat
     /**
      * Add stock item objects to products
      *
-     * @param   collection $productCollection
+     * @param   Mage_Catalog_Model_Resource_Product_Collection $productCollection
      *
      * @return  Mage_CatalogInventory_Model_Stock
      */
     public function addItemsToProducts($productCollection)
     {
-        $items = Mage::getModel('demac_multilocationinventory/stock_status_index')->getCollection();
-        $items
-            ->addProductsFilter($productCollection)
-            ->addFieldToFilter('store_id', Mage::app()->getStore()->getId());
+        /** @var Mage_CatalogInventory_Model_Resource_Stock_Item_Collection $items */
+        $items = $this->getItemCollection();
+        $items->addProductsFilter($productCollection);
+        $storeId = $productCollection->getStoreId();
+        if ($storeId) {
+            $websiteId = intval(Mage::app()->getStore($storeId)->getWebsiteId());
+            $items->join(
+                ['status_table' => 'cataloginventory/stock_status'],
+                "main_table.product_id=status_table.product_id AND AND status_table.website_id={$websiteId}",
+                ['qty', 'stock_status']
+            );
+        }
 
-        $stockItems = array();
+        /** @var Mage_CatalogInventory_Model_Stock_Item[] $stockItems */
+        $stockItems = [];
         foreach ($items as $item) {
+            /** @var Mage_CatalogInventory_Model_Stock_Item $item */
             $stockItems[$item->getProductId()] = $item;
         }
-        foreach ($productCollection as &$product) {
-            if(isset($stockItems[$product->getId()])) {
-                $stockItem = Mage::getModel('cataloginventory/stock_item');
-                $stockItem->setStockId(1);
-                $stockItem->setProduct($product);
-                $stockItem->setManageStock($stockItems[$product->getId()]->getManageStock());
-                $stockItem->setIsInStock((bool) $stockItems[$product->getId()]->getIsInStock());
-                $stockItem->setQty((int) $stockItems[$product->getId()]->getQty());
-                $stockItem->setBackorders((bool) $stockItems[$product->getId()]->getBackorders());
-                //@TODO load isQtyDecimal and set it properly.
-                $stockItem->setIsQtyDecimal(false);
-                $product->setStockItem($stockItem);
-                $product->setIsInStock((bool) $stockItems[$product->getId()]->getIsInStock());
-                $product->setIsSalable((bool) $stockItems[$product->getId()]->getIsInStock());
+
+        foreach ($productCollection as $product) {
+            /** @var Mage_Catalog_Model_Product $product */
+            if (isset($stockItems[$product->getId()])) {
+                $stockItems[$product->getId()]->assignProduct($product);
             }
         }
 
         return $this;
     }
-
 
     /**
      * Get back to stock (when order is canceled or whatever else)
@@ -61,10 +61,11 @@ class Demac_MultiLocationInventory_Model_CatalogInventory_Stock extends Mage_Cat
      */
     public function backItemQty($productId, $qty)
     {
+        /** @var Mage_CatalogInventory_Model_Stock_Item $stockItem */
         $stockItem = Mage::getModel('cataloginventory/stock_item')->loadByProduct($productId);
-        if($stockItem->getId() && Mage::helper('catalogInventory')->isQty($stockItem->getTypeId())) {
+        if ($stockItem->getId() && Mage::helper('catalogInventory')->isQty($stockItem->getTypeId())) {
             $stockItem->addQty($qty);
-            if($stockItem->getCanBackInStock() && $stockItem->getQty() > $stockItem->getMinQty()) {
+            if ($stockItem->getCanBackInStock() && $stockItem->getQty() > $stockItem->getMinQty()) {
                 $stockItem->setIsInStock(true)
                     ->setStockStatusChangedAutomaticallyFlag(true);
             }
@@ -73,5 +74,4 @@ class Demac_MultiLocationInventory_Model_CatalogInventory_Stock extends Mage_Cat
 
         return $this;
     }
-
 }

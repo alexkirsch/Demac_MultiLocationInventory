@@ -18,7 +18,6 @@ class Demac_MultiLocationInventory_Block_Adminhtml_Location_Grid extends Mage_Ad
         $this->setId('LocationGrid');
         $this->setDefaultDir('asc');
         $this->setSaveParametersInSession(true);
-
     }
 
     /**
@@ -29,7 +28,7 @@ class Demac_MultiLocationInventory_Block_Adminhtml_Location_Grid extends Mage_Ad
     protected function _prepareCollection()
     {
         // Get and set our collection for the grid
-        $collection = Mage::getResourceModel('demac_multilocationinventory/location_collection');
+        $collection = Mage::getModel('demac_multilocationinventory/location')->getCollection();
         $this->setCollection($collection);
 
         return parent::_prepareCollection();
@@ -43,86 +42,64 @@ class Demac_MultiLocationInventory_Block_Adminhtml_Location_Grid extends Mage_Ad
     protected function _prepareColumns()
     {
         // Add the columns that should appear in the grid
-        $this->addColumn('id',
-                         array(
-                             'header' => $this->__('ID'),
-                             'align'  => 'right',
-                             'width'  => '50px',
-                             'index'  => 'id'
-                         )
+        $this->addColumn(
+            'id',
+            [
+                'header' => $this->__('ID'),
+                'align'  => 'right',
+                'width'  => '50px',
+                'index'  => 'id',
+            ]
         );
 
-        $this->addColumn('external_id',
-                         array(
-                             'header' => $this->__('External ID'),
-                             'index'  => 'external_id',
-                         )
+        $this->addColumn(
+            'name',
+            [
+                'header' => $this->__('Name'),
+                'index'  => 'name',
+            ]
         );
 
-        $this->addColumn('name',
-                         array(
-                             'header' => $this->__('Name'),
-                             'index'  => 'name',
-                         )
+        $this->addColumn(
+            'external_id',
+            [
+                'header' => $this->__('External ID'),
+                'index'  => 'external_id',
+            ]
         );
 
-        $this->addColumn('address',
-                         array(
-                             'header' => $this->__('Address'),
-                             'index'  => 'address',
-                         )
+        $this->addColumn(
+            'websites',
+            [
+                'header'   => $this->__('Websites'),
+                'index'    => 'websites',
+                'renderer' => 'demac_multilocationinventory/adminhtml_widget_grid_column_website_renderer',
+                'sortable' => false,
+                'filter'   => false,
+            ]
         );
 
-        $this->addColumn('zipcode',
-                         array(
-                             'header' => $this->__('Postal Code'),
-                             'index'  => 'zipcode',
-                         )
+        $this->addColumn(
+            'priority',
+            [
+                'header' => $this->__('Priority'),
+                'index'  => $this->__('priority'),
+                'type'   => 'number',
+            ]
         );
 
-        $this->addColumn('city',
-                         array(
-                             'header' => $this->__('City'),
-                             'index'  => 'city',
-                         )
+        $this->addColumn(
+            'status',
+            [
+                'header'  => $this->__('Status'),
+                'index'   => $this->__('status'),
+                'type'    => 'options',
+                'options' => [
+                    0 => $this->__('Disabled'),
+                    1 => $this->__('Enabled'),
+                ],
+            ]
         );
-
-        $this->addColumn('region_id',
-                         array(
-                             'header' => $this->__('Region'),
-                             'index'  => 'region_id',
-                         )
-        );
-
-        $this->addColumn('country_id', array(
-            'header' => $this->__('Country'),
-            'width'  => '100',
-            'type'   => 'country',
-            'index'  => 'country_id',
-        ));
-
-        $this->addColumn('store_id', array(
-            'header'     => $this->__('Inventory For'),
-            'index'      => 'store_id',
-            'type'       => 'store',
-            'store_all'  => false,
-            'store_view' => false,
-            'sortable'   => false,
-            'filter'     => false
-        ));
-
-        $this->addColumn('status',
-                         array(
-                             'header'  => $this->__('Status'),
-                             'index'   => $this->__('status'),
-                             'type'    => 'options',
-                             'options' => array(
-                                 0 => $this->__('Disabled'),
-                                 1 => $this->__('Enabled'),
-                             ),
-                         )
-        );
-
 
         return parent::_prepareColumns();
     }
@@ -137,29 +114,34 @@ class Demac_MultiLocationInventory_Block_Adminhtml_Location_Grid extends Mage_Ad
         $this->setMassactionIdField('id');
         $this->getMassactionBlock()->setFormFieldName('demac_multilocationinventory');
 
-        $this->getMassactionBlock()->addItem('delete', array(
-            'label'   => $this->__('Delete'),
-            'url'     => $this->getUrl('*/*/massDelete'),
-            'confirm' => $this->__('Are you sure?')
-        ));
-
-        $statuses = array(
-            1 => $this->__('Enabled'),
-            0 => $this->__('Disabled')
+        $this->getMassactionBlock()->addItem(
+            'delete',
+            [
+                'label'   => $this->__('Delete'),
+                'url'     => $this->getUrl('*/*/massDelete'),
+                'confirm' => $this->__('Are you sure?'),
+            ]
         );
-        $this->getMassactionBlock()->addItem('status', array(
-            'label'      => $this->__('Change status'),
-            'url'        => $this->getUrl('*/*/massStatus', array('_current' => true)),
-            'additional' => array(
-                'visibility' => array(
-                    'name'   => 'status',
-                    'type'   => 'select',
-                    'class'  => 'required-entry',
-                    'label'  => $this->__('Status'),
-                    'values' => $statuses
-                )
-            )
-        ));
+
+        $this->getMassactionBlock()->addItem(
+            'status',
+            [
+                'label'      => $this->__('Change status'),
+                'url'        => $this->getUrl('*/*/massStatus', ['_current' => true]),
+                'additional' => [
+                    'visibility' => [
+                        'name'   => 'status',
+                        'type'   => 'select',
+                        'class'  => 'required-entry',
+                        'label'  => $this->__('Status'),
+                        'values' => [
+                            1 => $this->__('Enabled'),
+                            0 => $this->__('Disabled'),
+                        ],
+                    ],
+                ],
+            ]
+        );
 
         return $this;
     }
@@ -173,17 +155,6 @@ class Demac_MultiLocationInventory_Block_Adminhtml_Location_Grid extends Mage_Ad
      */
     public function getRowUrl($row)
     {
-        return $this->getUrl('*/*/edit', array('id' => $row->getId()));
-    }
-
-    /**
-     * After the collection is loaded call it's afterLoad method on each item.
-     *
-     * @return Demac_MultiLocationInventory_Block_Adminhtml_Location_Grid
-     */
-    protected function _afterLoadCollection()
-    {
-        $this->getCollection()->walk('afterLoad');
-        parent::_afterLoadCollection();
+        return $this->getUrl('*/*/edit', ['id' => $row->getId()]);
     }
 }

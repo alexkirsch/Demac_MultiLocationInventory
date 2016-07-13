@@ -19,25 +19,89 @@ class Demac_MultiLocationInventory_Block_Adminhtml_Location_Edit_Tab_Location ex
      */
     protected function _prepareForm()
     {
-        $locationModel  = Mage::registry('multilocationinventory_data');
-        $isEdit = (bool) $locationModel->getId();
+        /** @var Demac_MultiLocationInventory_Model_Location $locationModel */
+        $locationModel = Mage::registry('multilocationinventory_data');
+        $isEdit = (bool)$locationModel->getId();
 
-        $form     = new Varien_Data_Form();
-        $fieldset = $form->addFieldset('demac_multilocationinventory_form', array(
-            'legend' => $this->__('Location Information')
-        ));
+        $form = new Varien_Data_Form();
+        $fieldset = $form->addFieldset(
+            'demac_multilocationinventory_form',
+            [
+                'legend' => $this->__('Location Information'),
+            ]
+        );
 
         $this->_prepareFormHiddenFields($fieldset, $isEdit);
-        $this->_prepareFormStatusField($fieldset);
-        if(!Mage::app()->isSingleStoreMode()) {
-            $this->_prepareFormStoreSelectorField($fieldset);
+
+        $fieldset->addField(
+            'name',
+            'text',
+            [
+                'label'    => $this->__('Name'),
+                'class'    => 'required-entry',
+                'required' => true,
+                'name'     => 'name',
+            ]
+        );
+
+        $fieldset->addField(
+            'external_id',
+            'text',
+            [
+                'label'    => $this->__('External ID'),
+                'required' => false,
+                'name'     => 'external_id',
+            ]
+        );
+
+        $fieldset->addField(
+            'status',
+            'select',
+            [
+                'label'  => $this->__('Status'),
+                'name'   => 'status',
+                'values' => [
+                    [
+                        'value' => 1,
+                        'label' => $this->__('Enabled'),
+                    ],
+
+                    [
+                        'value' => 0,
+                        'label' => $this->__('Disabled'),
+                    ],
+                ],
+            ]
+        );
+
+        if (Mage::app()->isSingleStoreMode()) {
+            $this->_prepareFormWebsiteSelectorHiddenField($fieldset);
+            $locationModel->setDataUsingMethod('websites', [Mage::app()->getWebsite()->getId()]);
         } else {
-            $this->_prepareFormStoreSelectorHiddenField($fieldset);
-            $locationModel->setStoreId(Mage::app()->getStore(true)->getId());
+            $this->_prepareFormWebsiteSelectorField($fieldset);
         }
-        $this->_prepareFormGeneralFields($fieldset);
+
         $this->_prepareFormAddressFields($fieldset);
-        $this->_prepareFormLocationFields($fieldset);
+
+        $fieldset->addField(
+            'lat',
+            'text',
+            [
+                'label'    => $this->__('Latitude'),
+                'required' => false,
+                'name'     => 'lat',
+            ]
+        );
+
+        $fieldset->addField(
+            'long',
+            'text',
+            [
+                'label'    => $this->__('Longitude'),
+                'required' => false,
+                'name'     => 'long',
+            ]
+        );
 
         $form->setValues($locationModel->getData());
         $this->setForm($form);
@@ -51,100 +115,74 @@ class Demac_MultiLocationInventory_Block_Adminhtml_Location_Edit_Tab_Location ex
      * @param $fieldset
      * @param $isEdit
      */
-    protected function _prepareFormHiddenFields($fieldset, $isEdit)
+    protected function _prepareFormHiddenFields(Varien_Data_Form_Element_Fieldset $fieldset, $isEdit)
     {
-        if($isEdit) {
-            $fieldset->addField('id', 'hidden', array(
-                'name' => 'id',
-            ));
+        if ($isEdit) {
+            $fieldset->addField(
+                'id',
+                'hidden',
+                [
+                    'name' => 'id',
+                ]
+            );
         }
 
-        $fieldset->addField('created_time', 'hidden', array(
-            'name' => 'created_time',
-        ));
+        $fieldset->addField(
+            'created_time',
+            'hidden',
+            [
+                'name' => 'created_time',
+            ]
+        );
 
-        $fieldset->addField('update_time', 'hidden', array(
-            'name' => 'update_time',
-        ));
+        $fieldset->addField(
+            'update_time',
+            'hidden',
+            [
+                'name' => 'update_time',
+            ]
+        );
     }
-
-
 
     /**
      * Add hidden field to specify the current store to the form.
      *
-     * @param $fieldset
+     * @param Varien_Data_Form_Element_Fieldset $fieldset
      */
-    protected function _prepareFormStoreSelectorHiddenField($fieldset)
+    protected function _prepareFormWebsiteSelectorHiddenField(Varien_Data_Form_Element_Fieldset $fieldset)
     {
-        $fieldset->addField('store_id', 'hidden', array(
-            'name'  => 'stores[]',
-            'value' => Mage::app()->getStore(true)->getId()
-        ));
+        $fieldset->addField(
+            'websites',
+            'hidden',
+            [
+                'name'  => 'websites[]',
+                'value' => Mage::app()->getWebsite()->getId(),
+            ]
+        );
     }
 
     /**
      * Add field for store selection to the form.
      *
-     * @param $fieldset
+     * @param Varien_Data_Form_Element_Fieldset $fieldset
      */
-    protected function _prepareFormStoreSelectorField($fieldset)
+    protected function _prepareFormWebsiteSelectorField(Varien_Data_Form_Element_Fieldset $fieldset)
     {
-        $field    = $fieldset->addField('store_id', 'multiselect', array(
-            'name'     => 'stores[]',
-            'label'    => $this->__('Inventory For'),
-            'title'    => $this->__('Inventory For'),
-            'required' => true,
-            'values'   => Mage::getSingleton('adminhtml/system_store')->getStoreValuesForForm(false),
-        ));
-        $renderer = $this->getLayout()->createBlock('adminhtml/store_switcher_form_renderer_fieldset_element');
-        $field->setRenderer($renderer);
-    }
+        $values = [];
+        foreach (Mage::app()->getWebsites() as $website) {
+            $values[] = ['value' => $website->getId(), 'label' => $website->getName()];
+        }
 
-
-/**
-     * Add status field to the form.
-     *
-     * @param $fieldset
-     */
-    protected function _prepareFormStatusField($fieldset)
-    {
-        $fieldset->addField('status', 'select', array(
-            'label'  => $this->__('Status'),
-            'name'   => 'status',
-            'values' => array(
-                array(
-                    'value' => 1,
-                    'label' => $this->__('Enabled'),
-                ),
-
-                array(
-                    'value' => 0,
-                    'label' => $this->__('Disabled'),
-                ),
-            ),
-        ));
-    }
-
-    /**
-     * Add general fields to the form.
-     *
-     * @param $fieldset
-     */
-    protected function _prepareFormGeneralFields($fieldset)
-    {
-        $fieldset->addField('name', 'text', array(
-            'label'    => $this->__('Name'),
-            'class'    => 'required-entry',
-            'required' => true,
-            'name'     => 'name',
-        ));
-
-        $fieldset->addField('external_id', 'text', array(
-            'label'    => $this->__('External ID'),
-            'required' => false,
-            'name'     => 'external_id',
-        ));
+        $fieldset->addField(
+            'websites',
+            'multiselect',
+            [
+                'name'     => 'websites[]',
+                'label'    => $this->__('Websites'),
+                'required' => false,
+                'values'   => $values,
+            ]
+        );
     }
 
     /**
@@ -154,47 +192,68 @@ class Demac_MultiLocationInventory_Block_Adminhtml_Location_Edit_Tab_Location ex
      */
     protected function _prepareFormAddressFields($fieldset)
     {
-        $fieldset->addField('address', 'text', array(
-            'label'    => $this->__('Address'),
-            'class'    => 'required-entry',
-            'required' => true,
-            'name'     => 'address',
-        ));
+        $fieldset->addField(
+            'address',
+            'text',
+            [
+                'label'    => $this->__('Address'),
+                'class'    => 'required-entry',
+                'required' => true,
+                'name'     => 'address',
+            ]
+        );
 
-        $fieldset->addField('zipcode', 'text', array(
-            'label'    => $this->__('Postal Code'),
-            'class'    => 'required-entry',
-            'required' => true,
-            'name'     => 'zipcode',
-        ));
+        $fieldset->addField(
+            'zipcode',
+            'text',
+            [
+                'label'    => $this->__('Postal Code'),
+                'class'    => 'required-entry',
+                'required' => true,
+                'name'     => 'zipcode',
+            ]
+        );
 
-        $fieldset->addField('city', 'text', array(
-            'label'    => $this->__('City'),
-            'class'    => 'required-entry',
-            'required' => true,
-            'name'     => 'city',
-        ));
+        $fieldset->addField(
+            'city',
+            'text',
+            [
+                'label'    => $this->__('City'),
+                'class'    => 'required-entry',
+                'required' => true,
+                'name'     => 'city',
+            ]
+        );
 
-        $values    = array();
+        $values = [];
         $countryId = Mage::registry('multilocationinventory_data')->getCountryId();
-        if($countryId) {
+        if ($countryId) {
             $values = Mage::helper('demac_multilocationinventory')->getRegions($countryId);
         }
-        $fieldset->addField('region_id', 'select', array(
-            'name'   => 'region_id',
-            'label'  => 'State/Province',
-            'values' => $values
-        ));
+        $fieldset->addField(
+            'region_id',
+            'select',
+            [
+                'name'   => 'region_id',
+                'label'  => 'State/Province',
+                'values' => $values,
+            ]
+        );
 
         $countryList = Mage::getModel('directory/country')->getCollection()->toOptionArray();
-        $country     = $fieldset->addField('country_id', 'select', array(
-            'label'    => $this->__('Country'),
-            'name'     => 'country_id',
-            'title'    => 'country',
-            'values'   => $countryList,
-            'onchange' => 'getstate(this)',
-        ));
-        $country->setAfterElementHtml("<script type=\"text/javascript\">
+        $country = $fieldset->addField(
+            'country_id',
+            'select',
+            [
+                'label'    => $this->__('Country'),
+                'name'     => 'country_id',
+                'title'    => 'country',
+                'values'   => $countryList,
+                'onchange' => 'getstate(this)',
+            ]
+        );
+        $country->setAfterElementHtml(
+            "<script type=\"text/javascript\">
             function getstate(selectElement){
                 var reloadurl = '" . $this->getUrl('adminhtml/multiLocationInventory/region') . "country/' + selectElement.value;
                 new Ajax.Request(reloadurl, {
@@ -207,26 +266,7 @@ class Demac_MultiLocationInventory_Block_Adminhtml_Location_Edit_Tab_Location ex
                     }
                 });
             }
-        </script>");
-    }
-
-    /**
-     * Add location fields to the form.
-     *
-     * @param $fieldset
-     */
-    protected function _prepareFormLocationFields($fieldset)
-    {
-        $fieldset->addField('lat', 'text', array(
-            'label'    => $this->__('Latitude'),
-            'required' => true,
-            'name'     => 'lat',
-        ));
-
-        $fieldset->addField('long', 'text', array(
-            'label'    => $this->__('Longitude'),
-            'required' => true,
-            'name'     => 'long',
-        ));
+        </script>"
+        );
     }
 }
