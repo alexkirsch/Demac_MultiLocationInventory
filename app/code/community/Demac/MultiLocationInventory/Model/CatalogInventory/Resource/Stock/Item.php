@@ -17,24 +17,24 @@ class Demac_MultiLocationInventory_Model_CatalogInventory_Resource_Stock_Item ex
         $adapter = $this->_getReadAdapter();
         $isManageStock = (int)Mage::getStoreConfig(Mage_CatalogInventory_Model_Stock_Item::XML_PATH_MANAGE_STOCK);
         $stockExpr = $adapter->getCheckSql('cisi.use_config_manage_stock = 1', $isManageStock, 'cisi.manage_stock');
-        $stockExpr = $adapter->getCheckSql("({$stockExpr} = 1)", 'ciss.is_in_stock', '1');
+        $stockExpr = $adapter->getCheckSql("({$stockExpr} = 1)", 'cisi.is_in_stock', '1');
 
         $productCollection->joinTable(
             ['cisi' => 'cataloginventory/stock_item'],
             'product_id=entity_id',
-            [],
-            null,
-            'left'
-        );
-        $productCollection->joinTable(
-            ['ciss' => 'cataloginventory/stock_status'],
-            'product_id=entity_id AND website_id=' . Mage::app()->getWebsite()->getId(),
             [
-                'is_saleable'        => new Zend_Db_Expr($stockExpr),
-                'inventory_in_stock' => 'is_in_stock',
+                'is_saleable' => new Zend_Db_Expr($stockExpr),
+                'inventory_in_stock' => 'is_in_stock'
             ],
             null,
             'left'
+        );
+
+        $productCollection->getSelect()->joinLeft(
+            array('ciss' => $this->getTable('cataloginventory/stock_status')),
+            'ciss.product_id=e.entity_id' .
+            ' AND ciss.website_id = ' . Mage::app()->getWebsite()->getId(),
+            []
         );
 
         return $this;
