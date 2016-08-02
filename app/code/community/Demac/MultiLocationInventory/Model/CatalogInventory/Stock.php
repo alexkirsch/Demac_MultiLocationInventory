@@ -29,7 +29,7 @@ class Demac_MultiLocationInventory_Model_CatalogInventory_Stock extends Mage_Cat
             $websiteId = intval(Mage::app()->getStore($storeId)->getWebsiteId());
             $items->join(
                 ['status_table' => 'cataloginventory/stock_status'],
-                "main_table.product_id=status_table.product_id AND AND status_table.website_id={$websiteId}",
+                "main_table.product_id=status_table.product_id AND status_table.website_id={$websiteId}",
                 ['qty', 'stock_status']
             );
         }
