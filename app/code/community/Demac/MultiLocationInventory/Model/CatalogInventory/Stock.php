@@ -38,7 +38,7 @@ class Demac_MultiLocationInventory_Model_CatalogInventory_Stock extends Mage_Cat
                 $stockItem->setManageStock($stockItems[$product->getId()]->getManageStock());
                 $stockItem->setIsInStock((bool) $stockItems[$product->getId()]->getIsInStock());
                 $stockItem->setQty((int) $stockItems[$product->getId()]->getQty());
-                $stockItem->setBackorders((bool) $stockItems[$product->getId()]->getBackorders());
+                $stockItem->setBackorders((int) $stockItems[$product->getId()]->getBackorders());
                 //@TODO load isQtyDecimal and set it properly.
                 $stockItem->setIsQtyDecimal(false);
                 $product->setStockItem($stockItem);
